@@ -30,6 +30,7 @@ import {
 } from "../constants";
 import {
   getInterruptFromThread,
+  getThreadFilterMetadata,
   processInterruptedThread,
   processThreadWithoutInterrupts,
 } from "./utils";
@@ -352,12 +353,15 @@ export function ThreadsProvider<
           });
           return;
         }
+
         const statusInput = inbox === "all" ? {} : { status: inbox };
+        const metadataInput = getThreadFilterMetadata(agentInboxes);
 
         const threadSearchArgs = {
           offset,
           limit,
           ...statusInput,
+          ...(metadataInput ? { metadata: metadataInput } : {}),
         };
         const threads = await client.threads.search(threadSearchArgs);
         const data: ThreadData<ThreadValues>[] = [];

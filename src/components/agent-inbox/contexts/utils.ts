@@ -1,5 +1,6 @@
 import { Thread, ThreadState } from "@langchain/langgraph-sdk";
-import { HumanInterrupt, ThreadData } from "../types";
+import { AgentInbox, HumanInterrupt, ThreadData } from "../types";
+import { validate } from "uuid";
 
 // TODO: Delete this once interrupt issue fixed.
 export const tmpCleanInterrupts = (interrupts: Record<string, any[]>) => {
@@ -71,4 +72,29 @@ export function processThreadWithoutInterrupts<
     thread,
     interrupts: lastInterrupt.value as HumanInterrupt[],
   };
+}
+
+type ThreadFilterMetadata =
+  | {
+      graph_id: string;
+    }
+  | {
+      assistant_id: string;
+    };
+
+export function getThreadFilterMetadata(
+  agentInboxes: AgentInbox[]
+): ThreadFilterMetadata | undefined {
+  const graphAssistantId = agentInboxes.find((i) => i.selected)?.graphId;
+  if (graphAssistantId) {
+    if (validate(graphAssistantId)) {
+      return {
+        assistant_id: graphAssistantId,
+      };
+    } else {
+      return {
+        graph_id: graphAssistantId,
+      };
+    }
+  }
 }
