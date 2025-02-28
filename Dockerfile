@@ -1,40 +1,39 @@
-# Build stage for dependencies
+# Build stage
 FROM node:18-alpine AS deps
-
 WORKDIR /app
 
-# Install dependencies needed for node-gyp
-RUN apk add --no-cache python3 make g++
+# Print architecture information
+RUN uname -a && arch
 
-# Copy package files
+# Install dependencies only when needed
 COPY package.json yarn.lock ./
 
-# Install production dependencies only
-RUN yarn config set network-timeout 600000 && \
-    yarn install --production --frozen-lockfile --network-timeout 300000
+# Add network retry settings
+ARG YARN_NETWORK_TIMEOUT=100000
+ARG YARN_NETWORK_CONCURRENCY=1
 
-# Builder stage
+RUN yarn config set network-timeout ${YARN_NETWORK_TIMEOUT} && \
+    yarn config set network-concurrency ${YARN_NETWORK_CONCURRENCY} && \
+    yarn install --frozen-lockfile --production=false --network-timeout ${YARN_NETWORK_TIMEOUT}
+
+# Rebuild the source code only when needed
 FROM node:18-alpine AS builder
-
 WORKDIR /app
 
-# Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Install all dependencies (including dev deps) for build
-RUN yarn install --frozen-lockfile --network-timeout 300000
-
-# Build the application
+# Next.js collects completely anonymous telemetry data about general usage.
+# Learn more here: https://nextjs.org/telemetry
+# Uncomment the following line in case you want to disable telemetry during the build.
 ENV NEXT_TELEMETRY_DISABLED 1
+
 RUN yarn build
 
-# Production stage
+# Production image, copy all the files and run next
 FROM node:18-alpine AS runner
-
 WORKDIR /app
 
-# Set environment variables
 ENV NODE_ENV=production \
     PORT=3000 \
     NEXT_TELEMETRY_DISABLED=1
@@ -43,15 +42,12 @@ ENV NODE_ENV=production \
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy only necessary files from builder
+# Copy only necessary files
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Set correct ownership
-RUN chown -R nextjs:nodejs /app
-
-# Switch to non-root user
 USER nextjs
 
 # Expose the port

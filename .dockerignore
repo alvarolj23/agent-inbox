@@ -1,0 +1,47 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Testing
+coverage
+.nyc_output
+
+# Next.js
+.next
+out
+
+# Production
+build
+dist
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local env files
+.env*.local
+.env
+
+# Git
+.git
+.gitignore
+
+# IDEs and editors
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+*.pem
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Temp files
+*.log
+*.cache 

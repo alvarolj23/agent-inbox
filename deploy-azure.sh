@@ -9,7 +9,7 @@ RESOURCE_GROUP="rg-crypto-analysis"  # Use your resource group
 LOCATION="West Europe"
 
 # Application version and container name
-APP="agent-inbox:v1.0.0"
+APP="agent-inbox:v1.0.5"
 
 # Set Azure subscription
 echo "Setting Azure subscription..."
@@ -23,40 +23,22 @@ echo "Using ACR server: ${SERVER}"
 echo "Logging into Azure Container Registry..."
 az acr login -n ${ACR_NAME}
 
-# Remove existing builder if exists
-echo "Cleaning up existing builder..."
-docker buildx rm mybuilder || true
+# Set yarn network timeout and retries
+export YARN_NETWORK_TIMEOUT=300000
+export YARN_NETWORK_CONCURRENCY=1
 
-# Create and use a new builder instance with better caching
-echo "Setting up Docker buildx..."
-docker buildx create --name mybuilder \
-  --driver docker-container \
-  --driver-opt network=host \
-  --use \
-  --bootstrap
-
-# Set BuildKit options for better performance
-export DOCKER_BUILDKIT=1
-export BUILDKIT_STEP_LOG_MAX_SIZE=10485760
-export BUILDKIT_STEP_LOG_MAX_SPEED=10485760
-
-# Build and push multi-architecture image directly
-echo "Building and pushing multi-architecture image..."
+# Build and push for amd64 (Azure Web App uses amd64)
+echo "Building and pushing amd64 image..."
 docker buildx build \
   --platform linux/amd64 \
-  --cache-from type=registry,ref=${SERVER}/${APP} \
-  --cache-to type=inline \
-  --build-arg BUILDKIT_INLINE_CACHE=1 \
+  --build-arg YARN_NETWORK_TIMEOUT=300000 \
+  --build-arg YARN_NETWORK_CONCURRENCY=1 \
   --tag "${SERVER}/${APP}" \
   --push \
   .
 
-# Verify the push
-echo "Verifying image in ACR..."
-az acr repository show-tags \
-    --name ${ACR_NAME} \
-    --repository agent-inbox \
-    --orderby time_desc \
-    --output table
+echo "Build and push completed successfully!"
 
-echo "Build and push completed successfully!" 
+# Clean up
+echo "Cleaning up..."
+docker buildx rm mybuilder 
